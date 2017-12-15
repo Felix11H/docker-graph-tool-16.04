@@ -13,13 +13,6 @@ RUN apt-get update
 
 RUN apt-get install -y apt-utils wget bzip2
 
-WORKDIR /src
-
-RUN wget https://downloads.skewed.de/graph-tool/graph-tool-2.20.tar.bz2
-RUN tar xjf graph-tool-2.20.tar.bz2
-
-WORKDIR /src/graph-tool-2.20
-
 RUN apt-get install -y gcc g++
 RUN apt-get install -y libboost-all-dev
 RUN apt-get install -y libexpat1-dev
@@ -32,6 +25,15 @@ RUN apt-get install -y python3-cairo-dev
 RUN apt-get install -y python3-matplotlib
 RUN apt-get install -y graphviz python3-pygraphviz
 RUN apt-get install -y python3-pip
+
+
+WORKDIR /src
+
+RUN wget https://downloads.skewed.de/graph-tool/graph-tool-2.20.tar.bz2
+RUN tar xjf graph-tool-2.20.tar.bz2
+
+WORKDIR /src/graph-tool-2.20
+
 
 ENV PYTHON /usr/bin/python3.5
 
