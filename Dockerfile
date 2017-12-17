@@ -1,41 +1,44 @@
-# VERSION           2
-FROM base/archlinux:latest
-MAINTAINER Tiago de Paula Peixoto <tiago@skewed.de>
+FROM debian:stretch
 
-RUN echo 'Server=https://archive.archlinux.org/repos/2017/11/23/$repo/os/$arch' > /etc/pacman.d/mirrorlist
+ENV DEBIAN_FRONTEND noninteractive
 
-RUN pacman-key --refresh-keys
-RUN pacman -Suy --noconfirm
-RUN pacman -S binutils make gcc fakeroot --noconfirm --needed
-RUN pacman -S expac yajl git --noconfirm --needed
-RUN pacman -S sudo grep file --noconfirm --needed
+RUN apt-get update
 
-RUN pacman -S sudo boost python3 python3-scipy python3-numpy \
-              cgal cairomm python-cairo sparsehash cairomm   \
-	      autoconf-archive pkg-config --noconfirm --needed
+RUN apt-get install -y apt-utils wget bzip2
 
-ENV MAKEPKG_USER=mkpkg \
-    MAKEPKG_GROUP=mkpkg \
-    MAKEPKG_ROOT=/tmp/build
+WORKDIR /src
 
-RUN groupadd "${MAKEPKG_USER}" \
-    && useradd -g "${MAKEPKG_GROUP}" "${MAKEPKG_USER}"
+RUN wget https://downloads.skewed.de/graph-tool/graph-tool-2.20.tar.bz2
+RUN tar xjf graph-tool-2.20.tar.bz2
 
-RUN mkdir -p ${MAKEPKG_ROOT}; chown mkpkg:mkpkg ${MAKEPKG_ROOT}
+WORKDIR /src/graph-tool-2.20
 
-WORKDIR ${MAKEPKG_ROOT}
+RUN apt-get install -y gcc g++
+RUN apt-get install -y libboost-all-dev
+RUN apt-get install -y libexpat1-dev
+RUN apt-get install -y python3-scipy python3-numpy
+RUN apt-get install -y libcgal-dev
+RUN apt-get install -y libsparsehash-dev
+RUN apt-get install -y libcairomm-1.0-dev
+RUN apt-get install -y python3-cairo
+RUN apt-get install -y python3-cairo-dev
+RUN apt-get install -y python3-matplotlib
+RUN apt-get install -y graphviz python3-pygraphviz
+RUN apt-get install -y python3-pip
 
-USER ${MAKEPKG_USER}
-RUN curl -o PKGBUILD https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=python-graph-tool
-RUN makepkg PKGBUILD --install --needed CXXFLAGS="-mtune=generic -O3 -pipe -flto=4 -ffunction-sections -fdata-sections" LDFLAGS="-Wl,--gc-sections"
+ENV PYTHON /usr/bin/python3.5
 
-USER root
-RUN pacman -U python-graph-tool-*-x86_64.pkg.tar.xz --noconfirm --needed
+RUN ./configure
+RUN make -j 6
+RUN make install
 
-WORKDIR /root
+RUN apt-get install -y gir1.2-gtk-3.0
+RUN apt-get install -y vim bash-completion sudo
+RUN apt-get install -y python3-gi-cairo
 
-RUN rm -rf ${MAKEPKG_ROOT}/*
+RUN useradd user
+RUN echo "user ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/user
 
-RUN pacman -S ipython gtk3 python-gobject python-matplotlib python-pandas jupyter-notebook mathjax python-cairocffi pandoc --noconfirm --needed
+USER user
 
-RUN useradd -m -g users user
+ADD example.py /example.py
