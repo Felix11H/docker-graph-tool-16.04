@@ -1,53 +1,41 @@
-FROM ubuntu:16.04
-MAINTAINER felix11h.dev@gmail.com
+# VERSION           2
+FROM base/archlinux:latest
+MAINTAINER Tiago de Paula Peixoto <tiago@skewed.de>
 
-# compiling graph-tool from source to make sure I have the correct
-# version and to avoid broken or missing
+RUN echo 'Server=https://archive.archlinux.org/repos/2017/11/23/$repo/os/$arch' > /etc/pacman.d/mirrorlist
 
-# taken over and adapted from GitHub User "messa",
-# https://gist.github.com/messa/0505eb939e4d688d06ca653efc3d843e
+RUN pacman-key --refresh-keys
+RUN pacman -Suy --noconfirm
+RUN pacman -S binutils make gcc fakeroot --noconfirm --needed
+RUN pacman -S expac yajl git --noconfirm --needed
+RUN pacman -S sudo grep file --noconfirm --needed
+
+RUN pacman -S sudo boost python3 python3-scipy python3-numpy \
+              cgal cairomm python-cairo sparsehash cairomm   \
+	      autoconf-archive pkg-config --noconfirm --needed
+
+ENV MAKEPKG_USER=mkpkg \
+    MAKEPKG_GROUP=mkpkg \
+    MAKEPKG_ROOT=/tmp/build
+
+RUN groupadd "${MAKEPKG_USER}" \
+    && useradd -g "${MAKEPKG_GROUP}" "${MAKEPKG_USER}"
+
+RUN mkdir -p ${MAKEPKG_ROOT}; chown mkpkg:mkpkg ${MAKEPKG_ROOT}
+
+WORKDIR ${MAKEPKG_ROOT}
+
+USER ${MAKEPKG_USER}
+RUN curl -o PKGBUILD https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?h=python-graph-tool
+RUN makepkg PKGBUILD --install --needed CXXFLAGS="-mtune=generic -O3 -pipe -flto=4 -ffunction-sections -fdata-sections" LDFLAGS="-Wl,--gc-sections"
 
 USER root
+RUN pacman -U python-graph-tool-*-x86_64.pkg.tar.xz --noconfirm --needed
 
-RUN apt-get update
+WORKDIR /root
 
-RUN apt-get install -y apt-utils wget bzip2
+RUN rm -rf ${MAKEPKG_ROOT}/*
 
-RUN apt-get install -y gcc g++
-RUN apt-get install -y libboost-all-dev
-RUN apt-get install -y libexpat1-dev
-RUN apt-get install -y python3-scipy python3-numpy
-RUN apt-get install -y libcgal-dev
-RUN apt-get install -y libsparsehash-dev
-RUN apt-get install -y libcairomm-1.0-dev
-RUN apt-get install -y python3-cairo
-RUN apt-get install -y python3-cairo-dev
-RUN apt-get install -y python3-matplotlib
-RUN apt-get install -y graphviz python3-pygraphviz
-RUN apt-get install -y python3-pip
+RUN pacman -S ipython gtk3 python-gobject python-matplotlib python-pandas jupyter-notebook mathjax python-cairocffi pandoc --noconfirm --needed
 
-
-WORKDIR /src
-
-RUN wget https://downloads.skewed.de/graph-tool/graph-tool-2.20.tar.bz2
-RUN tar xjf graph-tool-2.20.tar.bz2
-
-WORKDIR /src/graph-tool-2.20
-
-
-ENV PYTHON /usr/bin/python3.5
-
-RUN ./configure
-RUN make -j 6
-RUN make install
-
-RUN apt-get install -y gir1.2-gtk-3.0
-RUN apt-get install -y vim bash-completion sudo
-RUN apt-get install -y python3-gi-cairo
-
-
-RUN useradd -ms /bin/bash docker
-USER docker
-
-
-
+RUN useradd -m -g users user
